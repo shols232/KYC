@@ -16,7 +16,7 @@ venv/
 htmlcov/
 src/static_root/
 src/static_dist/
-
+docker/develop/postgres/
 # Python compiled byte code
 *.pyc
 
