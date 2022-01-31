@@ -1,0 +1,9 @@
+.idea
+.gitlab
+.git
+.gitmodules
+.env
+.gitignore
+venv
+Makefile
+README.md

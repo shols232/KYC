@@ -1,0 +1,65 @@
+version: "3.8"
+   
+services:
+  redis:
+    image: redis:6.2.3-alpine
+
+  rabbitmq:
+    image: rabbitmq:3.8.16-management-alpine
+    environment:
+    - RABBITMQ_DEFAULT_VHOST=my_vhost
+
+  postgres:
+    image: postgres:11.5
+    volumes:
+      - ./docker/develop/postgres/db_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_NAME=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+  web:
+    build:
+      context: .
+    volumes:
+      - .:/django
+    ports:
+      - "8000:8000"
+    entrypoint:
+      - ./docker/develop/entrypoint.sh
+    environment:
+      - POSTGRES_NAME=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  worker:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - rabbitmq
+      - redis
+    volumes:
+      - .:/django
+    entrypoint:
+      - ./docker/develop/worker-entrypoint.sh
+
+  scheduler:
+    build: .
+    # command: celery -A core beat -l info
+    env_file:
+    - .env
+    depends_on:
+    - postgres
+    - rabbitmq
+    - redis
+    volumes:
+    - .:/django
+    entrypoint:
+    - ./docker/develop/scheduler-entrypoint.sh

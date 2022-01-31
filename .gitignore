@@ -1,0 +1,33 @@
+# IDEs
+.project
+.pydevproject
+.idea
+.vscode
+.settings
+.DS_Store
+out.xml
+
+# Random files
+*~
+\#*
+
+virtualenv/
+venv/
+htmlcov/
+src/static_root/
+src/static_dist/
+
+# Python compiled byte code
+*.pyc
+
+# SQLite3 database
+*.sqlite
+
+# Coverage
+coverage/
+.coverage
+.cache
+
+# celery
+celerybeat-schedule
+celerybeat.pid
