@@ -18,8 +18,9 @@ class ClientProviderAPIKeyCreateView(APIView):
         },
     )
     def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(data=request.data, context={'client': request.user})
 
         serializer.is_valid(raise_exception=True)
+        serializer.save()
 
         return Response({'action': 'success'}, status=status.HTTP_200_OK)

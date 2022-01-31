@@ -13,6 +13,6 @@ class BaseBVNVerificationManager:
         self.provider_failure = False
         self.client = client
 
-    def get_bvn_verification_object_from_api(self, value: str, user_data: dict[str, Any]) -> Optional[BVNVerification]:
+    def get_bvn_verification_object_from_api(self, value: str, user_data: dict[str, Any], provider_name: str) -> Optional[BVNVerification]:
         """To be implemented by specifc manager."""
         raise NotImplementedError('provide implementation')

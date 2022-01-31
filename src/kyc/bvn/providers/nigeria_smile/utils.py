@@ -16,55 +16,48 @@ from requests import RequestException
 from client.models import Client
 from kyc.abstract import RequestClient
 from kyc.constants import CUSTOM_ERROR_STATUS_CODE
-from lib.utils import get_api_settings, log_api_response
+from kyc.models import ClientProviderAPIKey
+from lib.utils import log_api_response
 from utilities.models import APIResponse
 
 from ..nigeria_smile import constants
 
 
 class SmileIdentityRequestClient(RequestClient):
-    def __init__(self, partner: Client) -> None:
+    def __init__(self, client: Client) -> None:
         """Initialize request."""
         self.response_code = 0
         self.response_data: dict[str, Any] = {}
-        self.partner = partner
-        self.api_response_object: APIResponse = (
-            APIResponse()
-        )  # mypy has an issue with this being optional because of log_api_response
+        self.client = client
+        self.api_response_object: APIResponse = APIResponse()
 
     @staticmethod
     def __generate_secret_key(key: str) -> Tuple[str, float]:
         """Generate the secret key."""
         timestamp = timezone.now().timestamp()
 
-        hashed = hashlib.sha256(f'{constants.SMILE_PARTNER_ID}:{timestamp}'.encode('utf-8')).hexdigest()
-
-        # public_key = RSA.importKey(base64.b64decode(str(settings.SMILE_IDENTITY['API_KEY'])))
+        hashed = hashlib.sha256(f'{constants.SMILE_CLIENT_ID}:{timestamp}'.encode('utf-8')).hexdigest()
         public_key: RSAPublicKey = serialization.load_pem_public_key(
             base64.b64decode(str(key)), backend=default_backend()
         )
 
-        # cipher = PKCS1_v1_5.new(public_key)
         cipher = public_key.encrypt(
-            f'{constants.SMILE_PARTNER_ID}:{timestamp}'.encode('utf-8'),
+            f'{constants.SMILE_CLIENT_ID}:{timestamp}'.encode('utf-8'),
             padding.PKCS1v15(),
         )
-
-        # encrypted = base64.b64encode(cipher.encrypt(hashed.encode('utf-8')))
         encrypted = base64.b64encode(cipher)
 
         signature = f'{encrypted.decode("utf-8")}|{hashed}'
         return signature, timestamp
 
-    def run(self, user_data: dict[str, Any]) -> dict[str, Any]:
+    def run(self, user_data: dict[str, Any], provider_name: str) -> dict[str, Any]:
         """Connect with smile identity api to return response."""
 
-        kyc_settings = get_api_settings(settings.PROVIDER_SMILE_IDENTITY_NAME, self.partner)
-        api_key = kyc_settings['api_key']
+        api_key = ClientProviderAPIKey.objects.get(client=self.client, provider=provider_name).api_key
         secret_key, timestamp = self.__generate_secret_key(api_key)
 
         request_data = {
-            'partner_id': constants.SMILE_PARTNER_ID,
+            'client_id': constants.SMILE_CLIENT_ID,
             'sec_key': secret_key,
             'timestamp': timestamp,
             'country': constants.SMILE_COUNTRY_CODE,
@@ -73,7 +66,7 @@ class SmileIdentityRequestClient(RequestClient):
             'first_name': user_data['first_name'],
             'last_name': user_data['last_name'],
             'dob': user_data['date_of_birth'],
-            'partner_params': {'job_id': str(uuid.uuid4()), 'user_id': user_data.get('id', '0'), 'job_type': 5},
+            'client_params': {'job_id': str(uuid.uuid4()), 'user_id': user_data.get('id', '0'), 'job_type': 5},
         }
 
         phone_number = user_data.get('phone_number')

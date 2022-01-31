@@ -27,7 +27,7 @@ class MyIdentityPassRequestClient(RequestClient):
             APIResponse()
         )
 
-    def run(self, user_data: dict[str, Any]) -> dict[str, Any]:
+    def run(self, user_data: dict[str, Any], provider_name: str) -> dict[str, Any]:
         """
         Myidentitypass to verify a user bvn.
 
@@ -38,7 +38,7 @@ class MyIdentityPassRequestClient(RequestClient):
         request_data = {
             'number': user_data['bvn'],
         }
-        api_key = ClientProviderAPIKey.objects.get(client=self.client, provider=user_data['provider']).api_key
+        api_key = ClientProviderAPIKey.objects.get(client=self.client, provider=provider_name).api_key
 
         try:
             response = requests.post(

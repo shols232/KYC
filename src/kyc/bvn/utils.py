@@ -1,5 +1,6 @@
 from typing import Any, Optional
 from kyc.bvn.constants import PROVIDER_MY_IDENTITY_PASS, PROVIDER_SMILE_IDENTITY
+from kyc.bvn.managers.smile_identity import SmileIdentityManager
 from kyc.models import ClientProviderAPIKey
 
 import phonenumbers
@@ -23,16 +24,19 @@ class BVNValidationManager:
 
         return_value: tuple containing BVNVerification or None and boolean showing if provider errors were sent.
         """
-        self.provider_name = user_data['provider']
+        # Traverse the list attempting each provider until one succeeds. or all providers are exhausted.
         managers: dict[str, Any] = {
             PROVIDER_MY_IDENTITY_PASS: MyIdentityPassManager,
+            PROVIDER_SMILE_IDENTITY: SmileIdentityManager,
         }
-        
-        provider_manager = managers[self.provider_name](self.client)
-        bvn_verification_object = provider_manager.get_bvn_verification_object_from_api(user_data['bvn'], user_data)
 
-        return bvn_verification_object
+        for provider in user_data['providers']:
+            provider_manager = managers[provider](self.client)
+            bvn_verification_object = provider_manager.get_bvn_verification_object_from_api(user_data['bvn'], user_data, provider)
+            if bvn_verification_object:
+                return bvn_verification_object
 
+        return None
     def validate_data(self, bvn_verification_object: BVNVerification, user_data: dict[str, Any]) -> bool:
         """Validate BVNVerification data gotten from provider against data supplied by client."""
         errors = []

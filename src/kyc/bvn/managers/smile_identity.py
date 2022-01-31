@@ -38,10 +38,10 @@ class SmileIdentityManager(BaseBVNVerificationManager):
             constants.SMILE_BVN_STATUS_TRANSPOSED_MATCH,
         ]
 
-    def get_bvn_verification_object_from_api(self, value: str, user_data: dict[str, Any]) -> Optional[BVNVerification]:
+    def get_bvn_verification_object_from_api(self, value: str, user_data: dict[str, Any], provider_name: str) -> Optional[BVNVerification]:
         """Return BVNVerification object created using response data from SmileIdentity API."""
-        client = SmileIdentityRequestClient(self.partner)
-        response_data = client.run(user_data)
+        client = SmileIdentityRequestClient(self.client)
+        response_data = client.run(user_data, provider_name)
         status_code = client.response_code
         bvn_verification_object = None
 
@@ -84,7 +84,7 @@ class SmileIdentityManager(BaseBVNVerificationManager):
                     phone_number=formatted_phone_number,
                     date_of_birth=date_of_birth,
                     provider=PROVIDER_SMILE_IDENTITY,
-                    partner=self.partner,
+                    client=self.client,
                 )
                 bvn_verification_object.api_responses.add(client.api_response_object)
 
@@ -98,7 +98,7 @@ class SmileIdentityManager(BaseBVNVerificationManager):
                     last_name=user_data['last_name'] if name_match else '################',
                     date_of_birth=date_of_birth if dob_match else wrong_date,
                     phone_number=formatted_phone_number if phone_number_match else '',
-                    partner=self.partner,
+                    client=self.client,
                     provider=PROVIDER_SMILE_IDENTITY,
                 )
         except KeyError:

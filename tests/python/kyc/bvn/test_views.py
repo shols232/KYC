@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from django.test import TestCase
 
 import mock
 import responses

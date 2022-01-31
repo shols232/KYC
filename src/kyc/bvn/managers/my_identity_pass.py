@@ -22,13 +22,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class MyIdentityPassManager(BaseBVNVerificationManager):
-    def get_bvn_verification_object_from_api(self, value: str, user_data: dict[str, Any]) -> Optional[BVNVerification]:
+    def get_bvn_verification_object_from_api(self, value: str, user_data: dict[str, Any], provider_name: str) -> Optional[BVNVerification]:
         """Return BVNVerification object created using response data from MyIdentityPass API."""
 
         bvn_verification_object = None
 
         client = MyIdentityPassRequestClient(self.client)
-        response_data = client.run(user_data)
+        response_data = client.run(user_data, provider_name)
         status_code = client.status_code
 
         response_status = response_data.get('status')

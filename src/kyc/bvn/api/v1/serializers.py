@@ -19,7 +19,7 @@ class ValidateBVNSerializer(Serializer[dict[str, Any]]):
     bvn = CharField(min_length=11, max_length=11)
     phone_number = CharField(required=False)
     date_of_birth = DateField()
-    provider = CharField()
+    providers = ListField(child=CharField(), required=False, allow_empty=False)
 
     def validate_bvn(self, value: str) -> str:
         """Validate BVN."""

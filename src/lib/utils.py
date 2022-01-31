@@ -31,25 +31,6 @@ def log_api_response(response: Response) -> APIResponse:
     )
 
 
-def get_api_settings(
-    provider_name: str,
-    partner: Client,
-) -> dict[str, str]:
-    """Get the correct API settings of a provider for a Partner."""
-    try:
-        api_settings = settings.SERVICES_SETTINGS[partner.domain][provider_name]
-    except KeyError:
-        LOGGER.exception(
-            'Incorrect Settings.',
-            extra={'provider_name': provider_name, 'partner_id': partner.id},
-        )
-
-        # Re-raise the exception, as it will be properly handled upwards in the chain
-        raise
-
-    return api_settings  # type: ignore
-
-
 def get_bank_code(bank: str, provider: str) -> str:
     """Return the bank code based on the provider."""
     bank_code = ''

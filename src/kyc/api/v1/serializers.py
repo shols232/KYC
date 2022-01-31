@@ -10,7 +10,7 @@ class ClientProviderAPIKeySerializer(ModelSerializer):
 
     class Meta:
         model = ClientProviderAPIKey
-        fields = ['id', 'provider', 'is_active', 'api_key']
+        fields = ['id', 'provider', 'api_key']
         read_only_fields = ['id']
 
     def create(self, validated_data) -> ClientProviderAPIKey:
@@ -20,7 +20,7 @@ class ClientProviderAPIKeySerializer(ModelSerializer):
         
         # It already exists.
         if not created:
-            client_provider.api_key = str(uuid.uuid4())
+            client_provider.api_key = validated_data['api_key']
             client_provider.save(update_fields=['api_key'])
 
         return client_provider
