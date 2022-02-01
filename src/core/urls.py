@@ -6,7 +6,7 @@ from drf_yasg import openapi
 
 SchemaView = get_schema_view(
     openapi.Info(
-        title='Infrastructure API',
+        title='KYC API',
         default_version='api',
     ),
     public=True,
