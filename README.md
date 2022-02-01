@@ -16,7 +16,7 @@ This software integrates BVN matching with multiple providers and cascades throu
 ## Installation
 
 * Install [docker](https://docs.docker.com/engine/install/) and
-* Install [docker-compose](https://docs.docker.com/compose/install/)
+https://docs.docker.com/compose/install/)
 * Make sure you can [run docker as non-sudo](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user)
 
 
@@ -33,6 +33,5 @@ This software integrates BVN matching with multiple providers and cascades throu
 All API Routes can be found at `$BASE_URL/api/docs/redoc/`
 
 ## Images of API
-![kyc_validate](https://user-images.githubusercontent.com/62092484/151928130-0bd48173-a87c-4327-ac1e-3f2366df2ccc.png)
-
+* Install [docker-compose](![kyc_validate_1](https://user-images.githubusercontent.com/62092484/151929027-dc82b26f-d79e-4c70-b98b-405f9446b136.png)
 
