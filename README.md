@@ -32,4 +32,7 @@ This software integrates BVN matching with multiple providers and cascades throu
 ## Notes:
 All API Routes can be found at `$BASE_URL/api/docs/redoc/`
 
+## Images of API
+![kyc_validate](https://user-images.githubusercontent.com/62092484/151928130-0bd48173-a87c-4327-ac1e-3f2366df2ccc.png)
+
 
