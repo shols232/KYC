@@ -9,7 +9,7 @@ from tests.python.client.test_models import ClientFactory
 
 
 class BVNVerificationFactory(factory.django.DjangoModelFactory):
-    partner = factory.SubFactory(ClientFactory)
+    client = factory.SubFactory(ClientFactory)
     provider = PROVIDER_MY_IDENTITY_PASS
     bvn = '12345678900'
     first_name = 'John'

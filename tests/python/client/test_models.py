@@ -18,12 +18,12 @@ class ClientFactory(factory.django.DjangoModelFactory):
 
 
 class ClientApiKeyFactory(factory.django.DjangoModelFactory):
-    partner = factory.SubFactory(Client)
+    client = factory.SubFactory(ClientFactory)
     api_key = 'some_api_key'
 
     class Meta:
         model = ClientApiKey
-        django_get_or_create = ('partner', 'api_key')
+        django_get_or_create = ('client', 'api_key')
 
 
 class ClientModelTests(TestCase):
@@ -31,7 +31,7 @@ class ClientModelTests(TestCase):
         self.client = ClientFactory.create(name='Client1')
 
     def test__str__(self):
-        self.assertEqual(str(self.partner), 'Client: Client1')
+        self.assertEqual(str(self.client), 'Client: Client1')
 
 
 class CLientApiKeyModelTests(TestCase):

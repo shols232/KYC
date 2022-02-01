@@ -1,8 +1,6 @@
 import json
 from datetime import datetime
-from django.test import TestCase
 
-import mock
 import responses
 from django.urls import reverse
 from rest_framework import status
@@ -13,20 +11,36 @@ from kyc.bvn.constants import (
 )
 from kyc.bvn.models import BVNVerification
 from kyc.bvn.providers.nigeria_my_identity_pass.constants import MY_IDENTITY_PAY_BVN_URL
+from kyc.bvn.providers.nigeria_smile.constants import SMILE_IDENTITY_API_URL
 from tests.python.client.test_models import ClientFactory
 from tests.python.kyc.bvn.test_models import BVNVerificationFactory
+from tests.python.kyc.test_models import ClientProviderApiKeyFactory
 from tests.python.testutils import TestUtils
 
 
 class ValidateBVNViewTests(APITestCase):
     def setUp(self) -> None:
-        self.client = ClientFactory(name='Client', domain='domain.ng', email='cliet@domain.com')
+        self.client_1 = ClientFactory(name='Client', domain='domain.ng', email='cliet@domain.com')
+        self.client_api_key = ClientProviderApiKeyFactory.create(client=self.client_1)
+        self.client_api_key_2 = ClientProviderApiKeyFactory.create(provider="SI", client=self.client_1)
 
 
     def mock_failed_my_identity_pass_call(self):
         """Mock a failed API call to MyIdentityPass. This ensures a provider failure occurs."""
         responses.add(
             responses.POST, url=MY_IDENTITY_PAY_BVN_URL, json={}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+    def mock_failed_smile_identity_api_call(self):
+        """Mock a failed API call to Smile Identity. This ensures a provider failure occurs."""
+        responses.add(
+            responses.POST,
+            url=SMILE_IDENTITY_API_URL,
+            json={
+                'status': 'error',
+                'ResultCode': '999999',
+            },
+            status=status.HTTP_200_OK,
         )
 
     @responses.activate
@@ -35,7 +49,6 @@ class ValidateBVNViewTests(APITestCase):
 
         self.assertEqual(BVNVerification.objects.count(), 0)
 
-        self.mock_failed_verify_me_api_call()
         self.mock_failed_smile_identity_api_call()
         responses.add(
             responses.POST,
@@ -83,8 +96,9 @@ class ValidateBVNViewTests(APITestCase):
                 'last_name': 'Doe',
                 'phone_number': '+2348012345678',
                 'date_of_birth': '1990-09-01',
+                'providers': ['MIP']
             },
-            **TestUtils.generate_client_auth_headers(self.client),
+            **TestUtils.generate_client_auth_headers(self.client_1),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -92,12 +106,7 @@ class ValidateBVNViewTests(APITestCase):
             response.json(),
             {
                 'is_valid': True,
-                'provider': 'my_identity_pass',
-                'errors': {
-                    'verify_me': ['We are unable to validate your BVN at this time.'],
-                    'smile_identity': ['We are unable to validate your BVN at this time.'],
-                },
-                'providers_attempted': ['verify_me', 'smile_identity', 'my_identity_pass'],
+                'errors': [],
             },
         )
         self.assertEqual(BVNVerification.objects.count(), 1)
@@ -107,12 +116,9 @@ class ValidateBVNViewTests(APITestCase):
         self.assertEqual(bvn_verification_object.phone_number, '+2348012345678')
         self.assertEqual(bvn_verification_object.date_of_birth.strftime('%Y-%m-%d'), '1990-09-01')
         self.assertEqual(bvn_verification_object.provider, PROVIDER_MY_IDENTITY_PASS)
-        self.assertEqual(bvn_verification_object.client, self.client)
-        self.assertEqual(len(responses.calls), 3)
-        self.assertDictEqual(
-            json.loads(bvn_verification_object.api_responses.order_by('-datetime_created').first().response),
-            json.loads(responses.calls[2].response.text),
-        )
+        self.assertEqual(bvn_verification_object.client, self.client_1)
+        self.assertEqual(len(responses.calls), 1)
+
 
     @responses.activate
     def test_validate_bvn__my_identity_pass_bvn_not_found(self):
@@ -134,8 +140,9 @@ class ValidateBVNViewTests(APITestCase):
                 'last_name': 'Doe',
                 'phone_number': '+2348012345678',
                 'date_of_birth': '1990-09-01',
+                'providers': ['MIP']
             },
-            **TestUtils.generate_client_auth_headers(self.client),
+            **TestUtils.generate_client_auth_headers(self.client_1),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -143,24 +150,17 @@ class ValidateBVNViewTests(APITestCase):
             response.json(),
             {
                 'is_valid': False,
-                'provider': 'my_identity_pass',
-                'providers_attempted': ['verify_me', 'smile_identity', 'my_identity_pass'],
-                'errors': {
-                    'verify_me': ['We are unable to validate your BVN at this time.'],
-                    'smile_identity': ['We are unable to validate your BVN at this time.'],
-                    'my_identity_pass': ['BVN not found'],
-                },
+                'errors': []
             },
         )
         self.assertEqual(BVNVerification.objects.count(), 0)
-        self.assertEqual(len(responses.calls), 3)
+        self.assertEqual(len(responses.calls), 1)
 
     @responses.activate
     def test_validate_bvn__my_identity_pass_invalid_bvn(self):
         """Test invalid BVN in MyIdentityPass."""
         self.assertEqual(BVNVerification.objects.count(), 0)
 
-        self.mock_failed_verify_me_api_call()
         self.mock_failed_smile_identity_api_call()
         responses.add(
             responses.POST,
@@ -168,6 +168,7 @@ class ValidateBVNViewTests(APITestCase):
             json={
                 'status': False,
                 'response_code': '01',
+                'providers': ["MIP"]
             },
             status=status.HTTP_200_OK,
         )
@@ -180,31 +181,27 @@ class ValidateBVNViewTests(APITestCase):
                 'last_name': 'Doe',
                 'phone_number': '+2348012345678',
                 'date_of_birth': '1990-09-01',
+                'providers': ["MIP"]
             },
-            **TestUtils.generate_client_auth_headers(self.client),
+            **TestUtils.generate_client_auth_headers(self.client_1),
         )
 
-        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertDictEqual(
             response.json(),
             {
-                'providers_attempted': ['verify_me', 'smile_identity', 'my_identity_pass'],
-                'errors': {
-                    'verify_me': ['We are unable to validate your BVN at this time.'],
-                    'smile_identity': ['We are unable to validate your BVN at this time.'],
-                    'my_identity_pass': ['We are unable to validate your BVN at this time.'],
-                },
+                'is_valid': False,
+                'errors': [],
             },
         )
         self.assertEqual(BVNVerification.objects.count(), 0)
-        self.assertEqual(len(responses.calls), 3)
+        self.assertEqual(len(responses.calls), 1)
 
     @responses.activate
     def test_validate_bvn__my_identity_pass_details_not_matching(self):
         """Test BVN details not matching in MyIdentityPass."""
         self.assertEqual(BVNVerification.objects.count(), 0)
 
-        self.mock_failed_verify_me_api_call()
         self.mock_failed_smile_identity_api_call()
         responses.add(
             responses.POST,
@@ -252,8 +249,9 @@ class ValidateBVNViewTests(APITestCase):
                 'last_name': 'Doe',
                 'phone_number': '+2348012345678',
                 'date_of_birth': '1990-09-01',
+                'providers': ["MIP"]
             },
-            **TestUtils.generate_client_auth_headers(self.client),
+            **TestUtils.generate_client_auth_headers(self.client_1),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -261,18 +259,12 @@ class ValidateBVNViewTests(APITestCase):
             response.json(),
             {
                 'is_valid': False,
-                'provider': 'my_identity_pass',
-                'providers_attempted': ['verify_me', 'smile_identity', 'my_identity_pass'],
-                'errors': {
-                    'verify_me': ['We are unable to validate your BVN at this time.'],
-                    'smile_identity': ['We are unable to validate your BVN at this time.'],
-                    'my_identity_pass': [
-                        'First name does not match.',
-                        'Last name does not match.',
-                        'Date of birth does not match.',
-                        'Phone number does not match.',
-                    ],
-                },
+                'errors': [
+                    'First name does not match.',
+                    'Last name does not match.',
+                    'Date of birth does not match.',
+                    'Phone number does not match.',
+                ],
             },
         )
         self.assertEqual(BVNVerification.objects.count(), 1)
@@ -282,12 +274,8 @@ class ValidateBVNViewTests(APITestCase):
         self.assertEqual(bvn_verification_object.phone_number, '')
         self.assertEqual(bvn_verification_object.date_of_birth.strftime('%Y-%m-%d'), '1991-09-01')
         self.assertEqual(bvn_verification_object.provider, PROVIDER_MY_IDENTITY_PASS)
-        self.assertEqual(bvn_verification_object.client, self.client)
-        self.assertEqual(len(responses.calls), 3)
-        self.assertDictEqual(
-            json.loads(bvn_verification_object.api_responses.order_by('-datetime_created').first().response),
-            json.loads(responses.calls[2].response.text),
-        )
+        self.assertEqual(bvn_verification_object.client, self.client_1)
+        self.assertEqual(len(responses.calls), 1)
 
     @responses.activate
     def test_cache_validation_success(self):
@@ -298,7 +286,7 @@ class ValidateBVNViewTests(APITestCase):
             last_name='Doe',
             phone_number='+2348012345678',
             bvn='12345678901',
-            client=self.client,
+            client=self.client_1,
             provider=PROVIDER_MY_IDENTITY_PASS,
         )
 
@@ -312,19 +300,20 @@ class ValidateBVNViewTests(APITestCase):
                 'last_name': 'Doe',
                 'phone_number': '+2348012345678',
                 'date_of_birth': '2021-09-09',
+                'providers': ['MIP']
             },
-            **TestUtils.generate_client_auth_headers(self.client),
+            **TestUtils.generate_client_auth_headers(self.client_1),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertDictEqual(
             response.json(),
-            {'is_valid': True, 'errors': {}, 'provider': 'verify_me', 'providers_attempted': ['verify_me']},
+            {'is_valid': True, 'errors': []},
         )
         self.assertEqual(BVNVerification.objects.count(), 1)
         bvn_verification_object = BVNVerification.objects.first()
         self.assertEqual(bvn_verification_object.provider, PROVIDER_MY_IDENTITY_PASS)
-        self.assertEqual(bvn_verification_object.client, self.client)
+        self.assertEqual(bvn_verification_object.client, self.client_1)
         self.assertEqual(len(responses.calls), 0)
 
     @responses.activate
@@ -336,7 +325,7 @@ class ValidateBVNViewTests(APITestCase):
             last_name='Doe',
             phone_number='+2348012345678',
             bvn='12345678901',
-            client=self.client,
+            client=self.client_1,
             provider=PROVIDER_MY_IDENTITY_PASS,
         )
 
@@ -350,8 +339,9 @@ class ValidateBVNViewTests(APITestCase):
                 'last_name': 'Person',
                 'phone_number': '+2341111111111',
                 'date_of_birth': '1921-08-08',
+                'providers': ['MIP']
             },
-            **TestUtils.generate_client_auth_headers(self.client),
+            **TestUtils.generate_client_auth_headers(self.client_1),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -359,20 +349,16 @@ class ValidateBVNViewTests(APITestCase):
             response.json(),
             {
                 'is_valid': False,
-                'errors': {
-                    'verify_me': [
-                        'First name does not match.',
-                        'Last name does not match.',
-                        'Date of birth does not match.',
-                        'Phone number does not match.',
-                    ]
-                },
-                'provider': 'verify_me',
-                'providers_attempted': ['verify_me'],
+                'errors': [
+                    'First name does not match.',
+                    'Last name does not match.',
+                    'Date of birth does not match.',
+                    'Phone number does not match.',
+                ]
             },
         )
         self.assertEqual(BVNVerification.objects.count(), 1)
         bvn_verification_object = BVNVerification.objects.first()
         self.assertEqual(bvn_verification_object.provider, PROVIDER_MY_IDENTITY_PASS)
-        self.assertEqual(bvn_verification_object.client, self.client)
+        self.assertEqual(bvn_verification_object.client, self.client_1)
         self.assertEqual(len(responses.calls), 0)
